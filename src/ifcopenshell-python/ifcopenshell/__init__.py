@@ -94,6 +94,9 @@ from .ifcopenshell_wrapper import file
 from .file import rocksdb_lazy_instance
 from . import guid
 from .ifcopenshell_wrapper import entity_instance
+from .entity_instance import _patch_swig_comparisons
+_patch_swig_comparisons()
+del _patch_swig_comparisons
 from .sql import sqlite, sqlite_entity
 
 # explicitly specify available imported symbols
