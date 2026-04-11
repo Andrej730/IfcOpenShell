@@ -16,14 +16,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with IfcOpenShell.  If not, see <http://www.gnu.org/licenses/>.
 
+from collections import namedtuple
+from collections.abc import Callable, Generator, Sequence
+from typing import Any, Literal, Optional, Union, overload
+
 import ifcopenshell
 import ifcopenshell.guid
 import ifcopenshell.util.element
 import ifcopenshell.util.representation
-from typing import Any, Callable, Optional, Union, Literal, overload
-from collections.abc import Generator, Sequence
-from collections import deque, namedtuple
-
 
 MATERIAL_TYPE = Literal[
     "IfcMaterial",
@@ -737,7 +737,7 @@ def get_material(
                 return relationship.RelatingMaterial
     if should_inherit:
         relating_type = get_type(element)
-        if relating_type != element and (has_associations := getattr(relating_type, "HasAssociations", None)):
+        if relating_type is not None and relating_type != element and (has_associations := getattr(relating_type, "HasAssociations", None)):
             return get_material(relating_type, should_skip_usage)
 
 
@@ -958,7 +958,7 @@ def get_elements_by_profile(profile: ifcopenshell.entity_instance) -> set[ifcope
     :return: The elements using the profile.
     """
     ifc_file = profile.file
-    queue = list(ifc_file.get_inverse(profile))
+    queue = ifc_file.get_inverse(profile)
     processed: set[ifcopenshell.entity_instance] = set()
     representations: set[ifcopenshell.entity_instance] = set()
     while queue:
@@ -1234,7 +1234,9 @@ def get_controls(element: ifcopenshell.entity_instance) -> Generator[ifcopenshel
             yield rel.RelatingControl
 
 
-def get_parent(element: ifcopenshell.entity_instance) -> Union[ifcopenshell.entity_instance, None]:
+def get_parent(
+    element: ifcopenshell.entity_instance, ifc_class: Optional[str] = None
+) -> Union[ifcopenshell.entity_instance, None]:
     """Get the parent in the spatial heirarchy
 
     IFC features a spatial hierarchy tree of all objects. Each spatial element
@@ -1251,6 +1253,8 @@ def get_parent(element: ifcopenshell.entity_instance) -> Union[ifcopenshell.enti
     - Voiding: the opening voids another physical element, such as a hole in a wall
 
     :param element: Any physical or spatial element in the tree
+    :param ifc_class: Optionally filter the type of parent you're after. For
+        example, you may be after the storey, not a space.
     :return: Its parent. This must exist for any valid file, or None if we've reached the IfcProject.
 
     Example:
@@ -1260,13 +1264,23 @@ def get_parent(element: ifcopenshell.entity_instance) -> Union[ifcopenshell.enti
         element = file.by_type("IfcWall")[0]
         parent = ifcopenshell.util.element.get_parent(element)
     """
-    return (
+    parent = (
         get_container(element, should_get_direct=True)
         or get_aggregate(element)
         or get_nest(element)
         or get_filled_void(element)
         or get_voided_element(element)
     )
+
+    if not ifc_class:
+        return parent
+
+    while parent:
+        if parent.is_a(ifc_class):
+            return parent
+        parent = get_parent(parent)
+
+    return None
 
 
 def get_filled_void(element: ifcopenshell.entity_instance) -> Union[ifcopenshell.entity_instance, None]:
@@ -1661,14 +1675,14 @@ def remove_deep2(
     subgraph = list(ifc_file.traverse(element, breadth_first=True))
     subgraph.extend(also_consider)
     subgraph_set = set(subgraph)
-    subelement_queue = deque([element])
+    subelement_queue = [element]
 
     # Cache already processed entities to avoid traversing them multiple time.
     # E.g. lots of IFCINDEXEDPOLYCURVES may reference the same IFCCARTESIANPOINTLIST2D.
     processed_ids: set[int] = set()
 
     while subelement_queue:
-        subelement = subelement_queue.popleft()
+        subelement = subelement_queue.pop(0)
         subelement_id = subelement.id()
         if (
             subelement_id
@@ -1703,7 +1717,6 @@ def remove_deep2(
 
     # We delete elements from subgraph in reverse order to allow batching to work
     for subelement in filter(lambda e: e in to_delete, subgraph[::-1]):
-        to_delete.remove(subelement)
         ifc_file.remove(subelement)
     # ifc_file.unbatch()
 

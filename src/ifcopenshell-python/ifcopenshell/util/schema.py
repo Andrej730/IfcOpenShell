@@ -16,13 +16,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with IfcOpenShell.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
 import json
+import os
 import time
+from typing import Any, Literal, Union
+
 import ifcopenshell
-import ifcopenshell.util.attribute
 import ifcopenshell.ifcopenshell_wrapper as ifcopenshell_wrapper
-from typing import Union, Any, Literal
+import ifcopenshell.util.attribute
 
 # This is highly experimental and incomplete, however, it may work for simple datasets.
 
@@ -70,7 +71,7 @@ def get_declaration(element: ifcopenshell.entity_instance):
         print(declaration.is_abstract()) # False
         print(declaration.supertype().name()) # IfcBuildingElement
     """
-    return element.declaration
+    return element.wrapped_data.declaration().as_entity()
 
 
 def is_a(declaration: ifcopenshell.ifcopenshell_wrapper.declaration, ifc_class: str) -> bool:
@@ -104,7 +105,7 @@ def get_supertypes(
     .. code:: python
 
         wall = model.createIfcWall()
-        results = ifcopenshell.util.schema.get_supertypes(wall.declaration.as_entity())
+        results = ifcopenshell.util.schema.get_supertypes(wall.wrapped_data.declaration().as_entity())
         # [<entity IfcBuildingElement>, <entity IfcElement>, ..., <entity IfcRoot>]
     """
     results = []
@@ -462,7 +463,7 @@ class Migrator:
     ) -> None:
         # NOTE: `attribute` is an attribute in new file schema
         # print("Migrating attribute", element, new_element, attribute.name())
-        old_file = element.file
+        old_file = element.wrapped_data.file
         if hasattr(element, attribute.name()):
             value = getattr(element, attribute.name())
             # print("Attribute names matched", value)
