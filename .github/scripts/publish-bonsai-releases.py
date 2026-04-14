@@ -14,8 +14,8 @@ from github import Github
 from github.GitReleaseAsset import GitReleaseAsset
 
 EXTENSION_ID = "bonsai"
-CURRENT_PYTHON_VERSION = "py313"
-CURRENT_PLATFORMS = ["linux-x64", "macos-arm64", "windows-x64"]
+CURRENT_PYTHON_VERSION = "py311"
+CURRENT_PLATFORMS = ["linux-x64", "macos-arm64", "macos-x64", "windows-x64"]
 
 
 def publish_asset(asset: GitReleaseAsset, token: str, repo_root: Path) -> None:
@@ -84,6 +84,8 @@ def main() -> None:
     print("\nRelease assets:")
     for asset_name in sorted(asset_platform_map.keys()):
         print(f"- {asset_name}")
+
+    return
 
     # https://extensions.blender.org/api/v1/swagger
     print("\nPublishing assets to Blender Extensions:")
