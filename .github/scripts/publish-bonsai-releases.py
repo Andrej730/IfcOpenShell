@@ -85,8 +85,6 @@ def main() -> None:
     for asset_name in sorted(asset_platform_map.keys()):
         print(f"- {asset_name}")
 
-    return
-
     # https://extensions.blender.org/api/v1/swagger
     print("\nPublishing assets to Blender Extensions:")
     for asset_name, (asset, platform) in asset_platform_map.items():
